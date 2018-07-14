@@ -156,7 +156,7 @@ class Xbee2MQTT(Daemon):
             port = "pin-%s" % number if len(item)>0 else port
             topic = pattern.format(address=address, port=port, item=item)
         else:
-            topic = self.pattern.format(address=address, port=port)
+            topic = pattern.format(address=address, port=port)
 
         # Clean excess slashes.
         return re.sub('//+|/$', '', topic).rstrip('/')

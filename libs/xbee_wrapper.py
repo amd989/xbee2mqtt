@@ -72,7 +72,7 @@ class XBeeWrapper(object):
         """
         try:
             self.log(logging.INFO, "Connecting to Xbee")
-            self.xbee = XBee(self.serial, callback=self.process, error_callback=self.errorlog)
+            self.xbee = XBee(self.serial, callback=self.process, error_callback=self.errorlog, escaped=True)
         except:
             return False
         return True
