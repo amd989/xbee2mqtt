@@ -65,8 +65,8 @@ class Xbee2MQTT(Daemon):
         """
         self._routes = {}
         self._actions = {}
-        for address, ports in routes.iteritems():
-            for port, topic in ports.iteritems():
+        for address, ports in routes.items():
+            for port, topic in ports.items():
                 self._routes[(address, port)] = topic
                 self._actions['%s/set' % topic] = (address, port)
 
@@ -114,7 +114,7 @@ class Xbee2MQTT(Daemon):
             try:
                 self.xbee.send_message(address, port, message)
             except Exception as e:
-                self.log(logging.ERROR, "Error while sending message (%e)" % e)
+                self.log(logging.ERROR, "Error while sending message (%s)" % e)
 
     def mqtt_publish(self, topic, value):
         """
@@ -123,7 +123,7 @@ class Xbee2MQTT(Daemon):
         if topic:
 
             now = time.time()
-            if topic in self._topics.keys() \
+            if topic in self._topics \
                 and self._topics[topic]['time'] + self.duplicate_check_window > now \
                 and self._topics[topic]['value'] == value \
                 :
@@ -207,7 +207,7 @@ class Xbee2MQTT(Daemon):
         self.log(logging.INFO, "Reloading")
         config = Config(config_file)
         self.load(config.get('general', 'routes', {}))
-        self.mqtt.subscribe(self._actions.keys())
+        self.mqtt.subscribe(list(self._actions.keys()))
 
     def run(self):
         """
@@ -215,7 +215,7 @@ class Xbee2MQTT(Daemon):
         """
         self.log(logging.INFO, "Starting " + __app__ + " v" + __version__)
         self.mqtt.on_message_cleaned = self.mqtt_on_message
-        self.mqtt.subscribe_to = self._actions.keys()
+        self.mqtt.subscribe_to = list(self._actions.keys())
         self.mqtt.logger = self.logger
         self.xbee.on_identification = self.xbee_on_identification
         self.xbee.on_node_discovery = self.xbee_on_identification
@@ -314,10 +314,10 @@ if __name__ == "__main__":
         elif 'reload' == sys.argv[1]:
             xbee2mqtt.reload()
         else:
-            print "Unknown command"
+            print("Unknown command")
             sys.exit(2)
         sys.exit(0)
     else:
-        print "usage: %s start|stop|restart" % sys.argv[0]
+        print("usage: %s start|stop|restart" % sys.argv[0])
         sys.exit(2)
 

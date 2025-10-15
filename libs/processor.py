@@ -23,7 +23,7 @@ __contact__ = "xose.perez@gmail.com"
 __copyright__ = "Copyright (C) Xose Pérez"
 __license__ = 'GPL v3'
 
-from filters import FilterFactory
+from .filters import FilterFactory
 
 class Processor(object):
     """

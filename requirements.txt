@@ -1,0 +1,10 @@
+# Python 3 dependencies for xbee2mqtt
+pyyaml>=5.4.1
+pyserial>=3.5
+paho-mqtt>=1.6.1
+parse>=1.19.0
+xbee>=2.3.2
+
+# Testing dependencies
+pytest>=7.4.0
+pytest-cov>=4.1.0

@@ -131,7 +131,7 @@ class EnumFilter(Filter):
     name = 'enum'
     required = []
     def process(self, value):
-        for from_value, to_value in self.parameters.iteritems():
+        for from_value, to_value in self.parameters.items():
             if str(value) == str(from_value):
                 return to_value
         return to_value
@@ -144,7 +144,7 @@ class StepFilter(Filter):
     name = 'step'
     required = []
     def process(self, value):
-        for threshold, to_value in self.parameters.iteritems():
+        for threshold, to_value in self.parameters.items():
             if float(value) <= threshold:
                 return to_value
         return to_value

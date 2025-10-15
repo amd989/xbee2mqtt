@@ -91,6 +91,8 @@ class XBeeWrapper(object):
 
         try:
             address = binascii.hexlify(packet['source_addr_long'])
+            if isinstance(address, bytes):
+                address = address.decode('ascii')
         except:
             pass
 
@@ -101,7 +103,10 @@ class XBeeWrapper(object):
 
             # Some streams arrive split in different packets
             # we buffer the data until we get an EOL
-            self.buffer[address] = self.buffer.get(address,'') + packet['rf_data']
+            rf_data = packet['rf_data']
+            if isinstance(rf_data, bytes):
+                rf_data = rf_data.decode('utf-8', errors='ignore')
+            self.buffer[address] = self.buffer.get(address,'') + rf_data
             count = self.buffer[address].count('\n')
             if (count):
                 lines = self.buffer[address].splitlines()
@@ -121,7 +126,7 @@ class XBeeWrapper(object):
         # Data received from an IO data sample
         elif (id == "rx_io_data_long_addr"):
             for sample in packet['samples']:
-                for port, value in sample.iteritems():
+                for port, value in sample.items():
                     if port[:4] == 'dio-':
                         value = 1 if value else 0
                     self.on_message(address, port, value)
@@ -184,7 +189,11 @@ class XBeeWrapper(object):
         # Process Node Discovery Command
         if (command == 'ND'):
             alias = response['node_identifier']
+            if isinstance(alias, bytes):
+                alias = alias.decode('utf-8', errors='ignore')
             address = binascii.hexlify(response['source_addr_long'])
+            if isinstance(address, bytes):
+                address = address.decode('ascii')
 
             self.log(logging.DEBUG, "Setting IO Sample Rate to %s seconds for address %s" % (self.sample_rate, address))
 
@@ -212,7 +221,7 @@ class XBeeWrapper(object):
                 self.xbee.remote_at(dest_addr_long = source_addr_long, command = 'WR')
 
         # Process retrieved pin status
-        elif (re.match('[DP]\d', command)):
+        elif (re.match(r'[DP]\d', command)):
             prefix, number = command[:1], command[1:]
             port = 'pin-1%s' % number if (prefix == 'P') else 'pin-%s' % number
             value = int(binascii.hexlify(response), 16)
@@ -274,7 +283,9 @@ class XBeeWrapper(object):
                 self.xbee.remote_at(dest_addr_long = address, command = command, frame_id = 'A')
                 if self.change_detection:
                     address = binascii.hexlify(address)
-                    self.issue_change_detection(address, port, value == '\x03')
+                    if isinstance(address, bytes):
+                        address = address.decode('ascii')
+                    self.issue_change_detection(address, port, value == b'\x03')
 
                 return True
         except:

@@ -30,11 +30,11 @@ class Serial(object):
     Serial Mock class, exposes the same API as the python-serial module
     """
 
-    stream = ''
+    stream = b''
     length = 0
     index = 0
 
-    data = ''
+    data = b''
 
     def _split_len(self, seq, length):
         """

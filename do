@@ -16,13 +16,12 @@ case "$ACTION" in
 
     "setup")
         if [ ! -d $FOLDER ]; then
-            virtualenv $FOLDER
+            python3 -m venv $FOLDER
         fi
 
-        $PIP install --upgrade ConfigParser
-        $PIP install --upgrade pyaml
+        $PIP install --upgrade pyyaml
         $PIP install --upgrade pyserial
-        $PIP install --upgrade nose
+        $PIP install --upgrade pytest
         $PIP install --upgrade paho-mqtt
 	$PIP install --upgrade parse
 	$PIP install --upgrade xbee
@@ -33,7 +32,7 @@ case "$ACTION" in
         ;;
 
     "tests")
-        $PYTHON $FOLDER/bin/nosetests --nocapture
+        $PYTHON -m pytest tests/ -v
         ;;
 
     "console")
