@@ -10,21 +10,27 @@ From version 0.3 it also supports setting digital pins LOW or HIGH on remote rad
 
 ## Quick Start with Docker (Recommended)
 
-The easiest way to run xbee2mqtt is using Docker:
+The easiest way to run xbee2mqtt is using Docker. Works on any Linux system including Raspberry Pi!
 
 ```bash
 # 1. Copy and configure
 cp config/xbee2mqtt.yaml.sample config/xbee2mqtt.yaml
 # Edit config/xbee2mqtt.yaml with your settings
 
-# 2. Start with Docker Compose
+# 2. Update docker-compose.yml with your serial device
+#    USB adapter: /dev/ttyUSB0 (default)
+#    Raspberry Pi GPIO: /dev/ttyAMA0 or /dev/serial0
+
+# 3. Start with Docker Compose
 docker-compose up -d
 
-# 3. View logs
+# 4. View logs
 docker-compose logs -f
 ```
 
-See [README.docker.md](README.docker.md) for detailed Docker deployment instructions.
+**Raspberry Pi users:** If connecting XBee to GPIO UART pins, uncomment the Raspberry Pi device lines in `docker-compose.yml`. See [RASPBERRY_PI.md](docs/RASPBERRY_PI.md) for complete Raspberry Pi setup guide.
+
+See [README.docker.md](docs/README.docker.md) for detailed Docker deployment instructions.
 
 ## Requirements
 
@@ -33,7 +39,10 @@ See [README.docker.md](README.docker.md) for detailed Docker deployment instruct
 ### Option 1: Docker (Recommended)
 
 - Docker and Docker Compose installed
-- XBee coordinator radio connected via USB
+- XBee coordinator radio connected via:
+  - USB-to-Serial adapter (any Linux/macOS/Windows)
+  - Raspberry Pi GPIO UART pins
+  - Direct USB connection to Raspberry Pi
 
 ### Option 2: Native Installation
 
@@ -172,22 +181,24 @@ Monitor raw XBee messages:
 Verify the Python 3 migration and run tests:
 
 ```bash
-# Verify migration
+# Verify migration (checks Python version, dependencies, syntax, imports)
 python verify_migration.py
 
-# Run tests
-pytest tests/ -v
+# Run unit tests
+pytest tests/TestProcessor.py -v
 # or: ./do tests
 ```
 
 All tests should pass:
 ```
-✅ Python version check
-✅ Dependencies installed
-✅ Syntax validation
-✅ Module imports
-✅ Filter tests (10/10 passing)
+✅ Python version: 3.6+
+✅ All dependencies installed
+✅ No syntax errors
+✅ All modules import successfully
+✅ 10/10 filter tests passing
 ```
+
+For detailed testing procedures, see the verification script output.
 
 ## Migration from Python 2
 
@@ -206,10 +217,13 @@ If you were using an older version, simply:
 
 ## Documentation
 
-- **[CLAUDE.md](CLAUDE.md)** - Architecture and development guide
-- **[README.docker.md](README.docker.md)** - Docker deployment guide
-- **[TESTING.md](TESTING.md)** - Comprehensive testing guide
+- **[CLAUDE.md](docs/CLAUDE.md)** - Architecture and development guide
+- **[README.docker.md](docs/README.docker.md)** - Docker deployment guide
+- **[RASPBERRY_PI.md](docs/RASPBERRY_PI.md)** - Raspberry Pi setup guide (GPIO UART & USB)
+- **[TESTING.md](docs/TESTING.md)** - Comprehensive testing guide
 - **[requirements.txt](requirements.txt)** - Python dependencies
+
+Browse all documentation in the [docs/](docs/) folder.
 
 ## License
 
