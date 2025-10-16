@@ -1,5 +1,9 @@
 # xbee2mqtt
 
+[![Docker Pulls](https://img.shields.io/docker/pulls/amd989/xbee2mqtt)](https://hub.docker.com/r/amd989/xbee2mqtt)
+[![Docker Image Size](https://img.shields.io/docker/image-size/amd989/xbee2mqtt/latest)](https://hub.docker.com/r/amd989/xbee2mqtt)
+[![Build Status](https://img.shields.io/github/actions/workflow/status/amd989/xbee2mqtt/docker-build.yml?branch=master)](https://github.com/amd989/xbee2mqtt/actions)
+
 A Python 3 daemon that bridges XBee ZigBee radios to MQTT brokers. It monitors a coordinator XBee connected to a serial port, translates radio messages to MQTT topics, and enables remote control of XBee digital I/O pins through MQTT commands.
 
 From version 0.3 it also supports setting digital pins LOW or HIGH on remote radios.
@@ -10,7 +14,26 @@ From version 0.3 it also supports setting digital pins LOW or HIGH on remote rad
 
 ## Quick Start with Docker (Recommended)
 
-The easiest way to run xbee2mqtt is using Docker. Works on any Linux system including Raspberry Pi!
+The easiest way to run xbee2mqtt is using Docker. Pre-built images available for all major architectures!
+
+### Using Docker Hub (Recommended)
+
+```bash
+# Pull the latest image (automatically selects your architecture)
+docker pull amd989/xbee2mqtt:latest
+
+# Or use docker-compose (see docker-compose.yml)
+docker-compose up -d
+```
+
+**Supported architectures:**
+- `linux/amd64` - x86 64-bit (PCs, servers, cloud)
+- `linux/arm64` - ARM 64-bit (Raspberry Pi 3/4/5 with 64-bit OS)
+- `linux/arm/v7` - ARM 32-bit v7 (Raspberry Pi 2/3/4 with 32-bit OS)
+- `linux/arm/v6` - ARM 32-bit v6 (Raspberry Pi Zero, Pi 1)
+- `linux/386` - x86 32-bit
+
+### Quick Setup
 
 ```bash
 # 1. Copy and configure

@@ -9,6 +9,45 @@ This guide explains how to run xbee2mqtt in a Docker container for consistent de
 - XBee coordinator radio connected via USB (typically `/dev/ttyUSB0`)
 - MQTT broker accessible (can be on same host or remote)
 
+## Docker Hub vs Local Build
+
+There are two ways to run xbee2mqtt with Docker:
+
+### Option 1: Docker Hub (Recommended)
+
+Pull pre-built multi-architecture images from Docker Hub:
+
+```bash
+docker pull amd989/xbee2mqtt:latest
+```
+
+**Advantages:**
+- ✅ No build time - instant deployment
+- ✅ Automatically selects correct architecture (amd64, arm64, arm/v7, arm/v6, 386)
+- ✅ Always up-to-date with latest stable release
+- ✅ Verified builds from CI/CD pipeline
+
+**Use this if:** You want to run the stable version without modifying code.
+
+The default `docker-compose.yml` uses Docker Hub images.
+
+### Option 2: Local Build
+
+Build the Docker image locally from source:
+
+```bash
+docker-compose -f docker-compose.dev.yml up --build
+```
+
+**Advantages:**
+- ✅ Test local code changes
+- ✅ Development and debugging
+- ✅ Custom modifications
+
+**Use this if:** You're developing or need to modify the code.
+
+The `docker-compose.dev.yml` file is configured for local builds.
+
 ## Quick Start
 
 ### 1. Configure the Application
@@ -51,6 +90,7 @@ Update `docker-compose.yml` with your device path. The default is `/dev/ttyUSB0`
 
 ### 3. Start with Docker Compose
 
+**Using Docker Hub image (recommended):**
 ```bash
 # Start in background
 docker-compose up -d
@@ -62,29 +102,55 @@ docker-compose logs -f
 docker-compose down
 ```
 
+**Using local build (for development):**
+```bash
+# Build and start
+docker-compose -f docker-compose.dev.yml up -d
+
+# View logs
+docker-compose -f docker-compose.dev.yml logs -f
+
+# Stop
+docker-compose -f docker-compose.dev.yml down
+```
+
 ## Manual Docker Commands
 
 If you prefer not to use Docker Compose:
 
-### Build the Image
+### Using Docker Hub Image
 
 ```bash
-docker build -t xbee2mqtt .
-```
+# Pull the image
+docker pull amd989/xbee2mqtt:latest
 
-### Run the Container
-
-```bash
+# Run the container
 docker run -d \
   --name xbee2mqtt \
   --restart unless-stopped \
   --device=/dev/ttyUSB0:/dev/ttyUSB0 \
   -v $(pwd)/config:/app/config:ro \
   -v $(pwd)/var:/app/var \
-  xbee2mqtt
+  amd989/xbee2mqtt:latest
 ```
 
-**Windows (PowerShell):**
+### Local Build
+
+```bash
+# Build the image
+docker build -t xbee2mqtt-local .
+
+# Run the container
+docker run -d \
+  --name xbee2mqtt \
+  --restart unless-stopped \
+  --device=/dev/ttyUSB0:/dev/ttyUSB0 \
+  -v $(pwd)/config:/app/config:ro \
+  -v $(pwd)/var:/app/var \
+  xbee2mqtt-local
+```
+
+**Windows (PowerShell) with Docker Hub:**
 ```powershell
 docker run -d `
   --name xbee2mqtt `
@@ -92,7 +158,7 @@ docker run -d `
   --device=/dev/ttyUSB0:/dev/ttyUSB0 `
   -v ${PWD}/config:/app/config:ro `
   -v ${PWD}/var:/app/var `
-  xbee2mqtt
+  amd989/xbee2mqtt:latest
 ```
 
 ### Manage the Container
@@ -289,7 +355,7 @@ services:
       - ./mosquitto/data:/mosquitto/data
 
   xbee2mqtt:
-    build: .
+    image: amd989/xbee2mqtt:latest
     container_name: xbee2mqtt
     restart: unless-stopped
     depends_on:
@@ -302,6 +368,8 @@ services:
 ```
 
 Set MQTT host to `mosquitto` in your config file.
+
+**For local development**, use `build: .` instead of `image: amd989/xbee2mqtt:latest`.
 
 ## Testing the Migration
 
@@ -409,14 +477,31 @@ If you encounter Python errors:
 
 ## Updating
 
-To update to a new version:
+### Updating Docker Hub Image
+
+To update to the latest version from Docker Hub:
+
+```bash
+# Pull latest image
+docker pull amd989/xbee2mqtt:latest
+
+# Restart with new image
+docker-compose down
+docker-compose up -d
+```
+
+The latest image is automatically built from the master branch via GitHub Actions.
+
+### Updating Local Build
+
+To update with local changes:
 
 ```bash
 # Pull latest code
 git pull
 
 # Rebuild and restart
-docker-compose down
-docker-compose build --no-cache
-docker-compose up -d
+docker-compose -f docker-compose.dev.yml down
+docker-compose -f docker-compose.dev.yml build --no-cache
+docker-compose -f docker-compose.dev.yml up -d
 ```

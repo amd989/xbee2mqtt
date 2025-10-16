@@ -2,8 +2,8 @@ version: '3.8'
 
 services:
   xbee2mqtt:
-    image: amd989/xbee2mqtt:latest
-    container_name: xbee2mqtt
+    build: .
+    container_name: xbee2mqtt-dev
     restart: unless-stopped
 
     # Serial device access - update to match your XBee device
