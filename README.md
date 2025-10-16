@@ -1,38 +1,97 @@
 # xbee2mqtt
 
-This daemon will monitor a coordinator XBee connected to a serial port of the computer for incoming messages.
-From version 0.3 it also support setting digital pins LOW or HIGH on remote radios.
-The radio **must** be configured in API mode.
+A Python 3 daemon that bridges XBee ZigBee radios to MQTT brokers. It monitors a coordinator XBee connected to a serial port, translates radio messages to MQTT topics, and enables remote control of XBee digital I/O pins through MQTT commands.
 
-You can read about this utility in my blog: [XBee to MQTT gateway](http://tinkerman.eldiariblau.net/xbee-to-mqtt-gateway/ "XBee to MQTT gateway").
+From version 0.3 it also supports setting digital pins LOW or HIGH on remote radios.
+
+**Key requirements:**
+- The XBee radio **must** be configured in API mode (not transparent mode)
+- Python 3.6+ (migrated from Python 2.7)
+
+## Quick Start with Docker (Recommended)
+
+The easiest way to run xbee2mqtt is using Docker:
+
+```bash
+# 1. Copy and configure
+cp config/xbee2mqtt.yaml.sample config/xbee2mqtt.yaml
+# Edit config/xbee2mqtt.yaml with your settings
+
+# 2. Start with Docker Compose
+docker-compose up -d
+
+# 3. View logs
+docker-compose logs -f
+```
+
+See [README.docker.md](README.docker.md) for detailed Docker deployment instructions.
 
 ## Requirements
 
-All requirements will be installed in the virtual environment by running
+**Python 3.6 or higher** is required. All dependencies will be installed automatically.
 
-    $ ./do setup
+### Option 1: Docker (Recommended)
 
-from the project root. If you don't want to use the virtualenv, you will have to install
-the requierements manually:
+- Docker and Docker Compose installed
+- XBee coordinator radio connected via USB
 
-    $ pip install ConfigParser
-    $ pip install pyaml
-    $ pip install pyserial
-    $ pip install nose
-    $ pip install paho-mqtt
-    $ pip install xbee
+### Option 2: Native Installation
 
-## Install
+Install dependencies in a virtual environment:
 
-Just clone or extract the code in some folder. I'm not providing an setup.py file yet.
-But you can install a local virtual environment using 
+```bash
+# Create virtual environment and install dependencies
+./do setup
 
-    $ ./do setup
+# Or manually with pip
+pip install -r requirements.txt
+```
+
+Required packages:
+- pyyaml >= 5.4.1
+- pyserial >= 3.5
+- paho-mqtt >= 1.6.1
+- parse >= 1.19.0
+- xbee >= 2.3.2
+- pytest >= 7.4.0 (for testing)
+
+## Installation
+
+### Docker Installation
+
+1. Clone the repository:
+   ```bash
+   git clone <repository-url>
+   cd xbee2mqtt
+   ```
+
+2. Configure and run:
+   ```bash
+   cp config/xbee2mqtt.yaml.sample config/xbee2mqtt.yaml
+   # Edit config/xbee2mqtt.yaml
+   docker-compose up -d
+   ```
+
+### Native Installation
+
+1. Clone the repository
+2. Set up virtual environment:
+   ```bash
+   ./do setup
+   ```
+
+3. Configure the application (see Configuration section below)
 
 
 ## Configuration
 
-Rename or copy the xbee2mqtt.yaml.sample to xbee2mqtt.yaml and edit it. The configuration is pretty straight forward:
+Copy the sample configuration and edit it:
+
+```bash
+cp config/xbee2mqtt.yaml.sample config/xbee2mqtt.yaml
+```
+
+Then edit `config/xbee2mqtt.yaml` with your settings. The configuration is straightforward:
 
 
 ### general
@@ -65,15 +124,100 @@ These are standard Mosquitto parameters. The status topic is the topic to post m
 The processor is responsible for pre-processing the values before publishing them. There are several filters defined in libs/Filters.py
 
 
-## Running it
+## Running
 
-The util stays resident as a daemon. You can start it, stop it or restart it (to reload the configuration) by using:
+### With Docker
 
-    $ python xbee2mqtt.py start|stop|restart
+```bash
+# Start
+docker-compose up -d
 
-or easier (it will login the virtual enviroment and execute the previous command):
+# View logs
+docker-compose logs -f
 
-    $ ./do start
+# Stop
+docker-compose down
+
+# Restart
+docker-compose restart
+```
+
+### Native Deployment
+
+The utility runs as a daemon. Control it with:
+
+```bash
+# Using the helper script (automatically uses virtualenv)
+./do start
+./do stop
+./do restart
+
+# Or directly with Python
+python xbee2mqtt.py start
+python xbee2mqtt.py stop
+python xbee2mqtt.py restart
+python xbee2mqtt.py reload  # Reload config without restarting
+```
+
+### Debugging
+
+Monitor raw XBee messages:
+
+```bash
+./do console  # or: python xbee2console.py
+```
+
+## Testing
+
+Verify the Python 3 migration and run tests:
+
+```bash
+# Verify migration
+python verify_migration.py
+
+# Run tests
+pytest tests/ -v
+# or: ./do tests
+```
+
+All tests should pass:
+```
+✅ Python version check
+✅ Dependencies installed
+✅ Syntax validation
+✅ Module imports
+✅ Filter tests (10/10 passing)
+```
+
+## Migration from Python 2
+
+This project has been migrated from Python 2.7 to Python 3.9+. Key changes:
+
+- ✅ Python 3.6+ required
+- ✅ Modern test framework (pytest instead of nose)
+- ✅ Updated dependencies (pyyaml instead of pyaml)
+- ✅ Docker support with Python 3.9 base image
+- ✅ All tests passing
+
+If you were using an older version, simply:
+1. Update your Python version to 3.6+
+2. Reinstall dependencies: `pip install -r requirements.txt`
+3. Verify: `python verify_migration.py`
+
+## Documentation
+
+- **[CLAUDE.md](CLAUDE.md)** - Architecture and development guide
+- **[README.docker.md](README.docker.md)** - Docker deployment guide
+- **[TESTING.md](TESTING.md)** - Comprehensive testing guide
+- **[requirements.txt](requirements.txt)** - Python dependencies
+
+## License
+
+GPL v3 - See [COPYING](COPYING) for details
+
+## Support
+
+For issues, questions, or contributions, please open an issue on the repository.
 
 
 

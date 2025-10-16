@@ -1,0 +1,43 @@
+version: '3.8'
+
+services:
+  xbee2mqtt:
+    build: .
+    container_name: xbee2mqtt
+    restart: unless-stopped
+
+    # Serial device access - update to match your XBee device
+    # Common options:
+    #   USB-to-Serial adapter: /dev/ttyUSB0
+    #   Raspberry Pi GPIO UART: /dev/ttyAMA0 or /dev/serial0
+    #   Raspberry Pi USB: /dev/ttyUSB0
+    devices:
+      - /dev/ttyUSB0:/dev/ttyUSB0
+      # For Raspberry Pi GPIO UART, uncomment:
+      # - /dev/ttyAMA0:/dev/ttyAMA0
+      # - /dev/serial0:/dev/serial0
+
+    # Privileged mode for serial port access (alternative to devices)
+    # Only use if device mapping doesn't work
+    # privileged: true
+
+    volumes:
+      # Mount config directory
+      - ./config:/app/config:ro
+      # Mount var directory for logs and PID file
+      - ./var:/app/var
+
+    environment:
+      # Optional: Override logging level (10=DEBUG, 20=INFO, 30=WARNING, 40=ERROR)
+      - LOGGING_LEVEL=20
+
+    # Network mode for MQTT connectivity
+    # Use 'host' if MQTT broker is on localhost
+    # Or use 'bridge' (default) and specify broker IP in config
+    network_mode: bridge
+
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
