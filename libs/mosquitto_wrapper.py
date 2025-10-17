@@ -22,7 +22,12 @@ __contact__ = "xose.perez@gmail.com"
 __copyright__ = "Copyright (C) 2013 Xose Pérez"
 __license__ = 'GPL v3'
 
-from paho.mqtt.client import Client as Mosquitto
+from paho.mqtt.client import Client as Mosquitto, MQTTv311
+try:
+    from paho.mqtt.client import CallbackAPIVersion
+    PAHO_V2 = True
+except ImportError:
+    PAHO_V2 = False
 import ctypes
 import time
 import logging
@@ -56,6 +61,39 @@ class MosquittoWrapper(Mosquitto):
 
     _subscriptions = {}
 
+    def __init__(self, client_id="", clean_session=None, userdata=None, protocol=None, transport="tcp"):
+        """
+        Initialize with compatibility for both paho-mqtt v1.x and v2.x
+        """
+        # Default to MQTTv311 if protocol not specified
+        if protocol is None:
+            protocol = MQTTv311
+
+        if PAHO_V2:
+            # paho-mqtt v2.x requires CallbackAPIVersion and uses different parameter names
+            # Note: clean_session doesn't exist in v2.x, it's handled by MQTTv5/v3.1.1 protocol automatically
+            init_params = {
+                'callback_api_version': CallbackAPIVersion.VERSION1,
+                'client_id': client_id,
+                'userdata': userdata,
+                'protocol': protocol,
+                'transport': transport
+            }
+            # Only pass clean_session if explicitly set (v2.x defaults handle this)
+            # In v2.x with VERSION1 callbacks, clean_session is still supported
+            if clean_session is not None:
+                init_params['clean_session'] = clean_session
+            super(MosquittoWrapper, self).__init__(**init_params)
+        else:
+            # paho-mqtt v1.x
+            super(MosquittoWrapper, self).__init__(
+                client_id=client_id,
+                clean_session=clean_session,
+                userdata=userdata,
+                protocol=protocol,
+                transport=transport
+            )
+
     def log(self, level, message):
         if self.logger:
             self.logger.log(level, message)
@@ -73,8 +111,13 @@ class MosquittoWrapper(Mosquitto):
         if self.username:
             self.username_pw_set(self.username, self.password)
         if self.set_will:
-            self.will_set(self.status_topic % self._client_id, "0", self.qos, self.retain)
-        self.log(logging.INFO, "Connecting to MQTT broker")
+            # Decode client_id from bytes to string for Python 3 compatibility
+            client_id_str = self._client_id.decode('utf-8') if isinstance(self._client_id, bytes) else self._client_id
+            self.will_set(self.status_topic % client_id_str, "0", self.qos, self.retain)
+        self.log(logging.INFO, "Connecting to MQTT broker at %s:%s" % (self.host, self.port))
+        # Ensure host is a valid string (paho-mqtt v2.x is strict about validation)
+        if not self.host or not isinstance(self.host, str):
+            raise ValueError("MQTT host must be a valid string, got: %s" % repr(self.host))
         Mosquitto.connect(self, self.host, self.port, self.keepalive)
 
     def subscribe(self, topics):
@@ -105,6 +148,9 @@ class MosquittoWrapper(Mosquitto):
         """
         qos = qos if qos is not None else self.qos
         retain = retain if retain is not None else self.retain
+        # Ensure topic is a string for Python 3 compatibility
+        if isinstance(topic, bytes):
+            topic = topic.decode('utf-8')
         Mosquitto.publish(self, topic, str(value), qos, retain)
 
     def __on_connect(self, mosq, obj, flags, rc):
@@ -113,7 +159,9 @@ class MosquittoWrapper(Mosquitto):
         """
         if rc == 0:
             self.log(logging.INFO , "Connected to MQTT broker")
-            self.publish(self.status_topic % self._client_id, "1")
+            # Decode client_id from bytes to string for Python 3 compatibility
+            client_id_str = self._client_id.decode('utf-8') if isinstance(self._client_id, bytes) else self._client_id
+            self.publish(self.status_topic % client_id_str, "1")
             self.subscribe(self.subscribe_to)
             self.connected = True
         else:

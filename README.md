@@ -240,7 +240,6 @@ If you were using an older version, simply:
 
 ## Documentation
 
-- **[CLAUDE.md](docs/CLAUDE.md)** - Architecture and development guide
 - **[README.docker.md](docs/README.docker.md)** - Docker deployment guide
 - **[RASPBERRY_PI.md](docs/RASPBERRY_PI.md)** - Raspberry Pi setup guide (GPIO UART & USB)
 - **[TESTING.md](docs/TESTING.md)** - Comprehensive testing guide

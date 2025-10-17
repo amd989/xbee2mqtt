@@ -8,18 +8,21 @@ services:
 
     # Serial device access - update to match your XBee device
     # Common options:
-    #   USB-to-Serial adapter: /dev/ttyUSB0
+    #   Linux USB-to-Serial: /dev/ttyUSB0
     #   Raspberry Pi GPIO UART: /dev/ttyAMA0 or /dev/serial0
-    #   Raspberry Pi USB: /dev/ttyUSB0
+    #   Windows (Docker Desktop/WSL2): /dev/ttyS<N> where N = COM port number - 1
+    #     COM1 -> /dev/ttyS0, COM2 -> /dev/ttyS1, COM5 -> /dev/ttyS4, etc.
     devices:
       - /dev/ttyUSB0:/dev/ttyUSB0
+      # For Windows COM ports via /dev/ttyS*, uncomment:
+      # - /dev/ttyS4:/dev/ttyS4
       # For Raspberry Pi GPIO UART, uncomment:
       # - /dev/ttyAMA0:/dev/ttyAMA0
       # - /dev/serial0:/dev/serial0
 
     # Privileged mode for serial port access (alternative to devices)
-    # Only use if device mapping doesn't work
-    # privileged: true
+    # Required on Windows/WSL2 for serial port access
+    privileged: true
 
     volumes:
       # Mount config directory
@@ -32,9 +35,13 @@ services:
       - LOGGING_LEVEL=20
 
     # Network mode for MQTT connectivity
-    # Use 'host' if MQTT broker is on localhost
-    # Or use 'bridge' (default) and specify broker IP in config
+    # Note: 'host' mode doesn't work on Docker Desktop for Windows
+    # Using 'bridge' mode - container can reach external IPs like 192.168.x.x
     network_mode: bridge
+
+    # Add extra host for accessing Windows host
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
 
     logging:
       driver: "json-file"

@@ -3,7 +3,7 @@ daemon:
     stderr: /tmp/xbee2mqtt.err
     stdout: /tmp/xbee2mqtt.log
 
-    logging_level: 10
+    logging_level: 10 # 10=DEBUG, 20=INFO, 30=WARNING, 40=ERROR
 
 general:
     sample_rate: 5
@@ -39,7 +39,7 @@ mqtt:
     clean_session: False
     qos: 0
     retain: True
-    status_topic: /service/xbee2mqtt/status
+    status_topic: xbee2mqtt/%s/status
     set_will: False
 
 processor:

@@ -8,11 +8,14 @@ services:
 
     # Serial device access - update to match your XBee device
     # Common options:
-    #   USB-to-Serial adapter: /dev/ttyUSB0
+    #   Linux USB-to-Serial: /dev/ttyUSB0
     #   Raspberry Pi GPIO UART: /dev/ttyAMA0 or /dev/serial0
-    #   Raspberry Pi USB: /dev/ttyUSB0
+    #   Windows (Docker Desktop/WSL2): /dev/ttyS<N> where N = COM port number - 1
+    #     COM1 -> /dev/ttyS0, COM2 -> /dev/ttyS1, COM5 -> /dev/ttyS4, etc.
     devices:
       - /dev/ttyUSB0:/dev/ttyUSB0
+      # For Windows COM5, uncomment:
+      # - /dev/ttyS4:/dev/ttyS4
       # For Raspberry Pi GPIO UART, uncomment:
       # - /dev/ttyAMA0:/dev/ttyAMA0
       # - /dev/serial0:/dev/serial0
