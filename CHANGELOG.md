@@ -1,5 +1,12 @@
-## What's Changed
+## What's Changed in 0.9.20251025
+* chore: :bookmark: bump to version 0.9.20251025 by @amd989
+* feat: :sparkles: add support for homeassistant autodiscovery by @amd989
+* docs: :page_facing_up: add gpl v3 license by @amd989
+* build: :hammer: update do script with relevant operations by @amd989
+* docs: :memo: add changelogs with gitcliff by @amd989
 * ci: :construction_worker: add automatic version tagging by @amd989
+
+**Full Changelog**: https://github.com/amd989/xbee2mqtt/compare/v0.8.20251017...v0.9.20251025
 
 ## What's Changed in 0.8.20251017
 * fix: 🐛 correct mqtt connectivity issues by @amd989
