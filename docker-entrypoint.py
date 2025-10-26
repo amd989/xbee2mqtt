@@ -82,6 +82,18 @@ if __name__ == "__main__":
     xbee2mqtt.expose_undefined_topics = config.get(
         'general', 'expose_undefined_topics', xbee2mqtt.publish_undefined_topics
     )
+
+    # Home Assistant MQTT Discovery
+    xbee2mqtt.ha_discovery_enabled = config.get('homeassistant', 'discovery', False)
+    xbee2mqtt.ha_discovery_prefix = config.get('homeassistant', 'discovery_prefix', 'homeassistant')
+    if xbee2mqtt.ha_discovery_enabled:
+        from libs.ha_discovery import HADiscovery
+        xbee2mqtt.ha_discovery = HADiscovery(
+            discovery_prefix=xbee2mqtt.ha_discovery_prefix,
+            node_name_pattern=config.get('homeassistant', 'node_name_pattern', 'XBee {alias}')
+        )
+        logger.info("Home Assistant MQTT Discovery enabled")
+
     xbee2mqtt.load(config.get('general', 'routes', {}))
     xbee2mqtt.logger = logger
     xbee2mqtt.mqtt = mqtt

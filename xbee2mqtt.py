@@ -40,6 +40,7 @@ from libs.processor import Processor
 from libs.config import Config
 from libs.mosquitto_wrapper import MosquittoWrapper
 from libs.xbee_wrapper import XBeeWrapper
+from libs.ha_discovery import HADiscovery
 
 class Xbee2MQTT(Daemon):
     """
@@ -58,6 +59,13 @@ class Xbee2MQTT(Daemon):
     _routes = {}
     _actions = {}
     _topics = {}
+
+    ha_discovery = None  # HADiscovery instance
+    ha_discovery_enabled = False
+    ha_discovery_prefix = "homeassistant"
+    _discovered_entities = {}  # Track published entities: {(address, port): True}
+    _device_pin_configs = {}  # Track pin configs: {(address, port): value}
+    _device_aliases = {}  # Track device aliases: {address: alias}
 
     def load(self, routes):
         """
@@ -172,6 +180,15 @@ class Xbee2MQTT(Daemon):
             self.transform_pattern(self.default_topic_pattern, address, port) if self.expose_undefined_topics else False
         )
         prefix = port[:4]
+
+        # Track pin configurations for HA discovery
+        if prefix == 'pin-':
+            self._device_pin_configs[(address, port)] = value
+            # Also determine if corresponding dio should be discovered
+            number = port[4:]
+            dio_port = 'dio-%s' % number
+            dio_pin_value = value  # 3 = input, 4/5 = output
+
         if self.expose_undefined_topics and prefix in ['dio-', 'pin-']:
             self.mqtt.subscribe(self.transform_pattern(self.default_input_topic_pattern, address, port))
             number = port[4:]
@@ -181,6 +198,20 @@ class Xbee2MQTT(Daemon):
                 self.mqtt.subscribe(digital_topic)
             else:
                 self.mqtt.unsubscribe(digital_topic)
+
+        # Get alias if known, otherwise use address
+        alias = self._device_aliases.get(address, None)
+
+        # Get pin configuration if this is a dio port
+        pin_value = None
+        if prefix == 'dio-':
+            number = port[4:]
+            pin_port = 'pin-%s' % number
+            pin_value = self._device_pin_configs.get((address, pin_port), None)
+
+        # Publish HA discovery before publishing state
+        self.publish_ha_discovery(address, alias, port, topic, pin_value)
+
         self.mqtt_publish(topic, value)
 
     def xbee_on_identification(self, address, alias):
@@ -190,18 +221,70 @@ class Xbee2MQTT(Daemon):
         now = time.strftime("%s")
         self.log(logging.INFO, "Identification received from radio: %s (%s) %s" % (address, alias, now))
 
-        topic = self._routes.get(
+        # Store alias for future reference
+        self._device_aliases[address] = alias
+
+        topic_for_seen = self._routes.get(
             (address, "seen"),
             self.transform_pattern(self.default_topic_pattern, address, "seen") if self.expose_undefined_topics else False
         )
-        self.mqtt_publish(topic, now)
 
-        topic = self._routes.get(
+        topic_for_alias = self._routes.get(
             (address, "alias"),
             self.transform_pattern(self.default_topic_pattern, address, "alias") if self.expose_undefined_topics else False
         )
-        self.mqtt_publish(topic, alias)
+
+        # Publish HA discovery for seen and alias before publishing state
+        self.publish_ha_discovery(address, alias, "seen", topic_for_seen)
+        self.publish_ha_discovery(address, alias, "alias", topic_for_alias)
+
+        self.mqtt_publish(topic_for_seen, now)
+        self.mqtt_publish(topic_for_alias, alias)
         self.xbee.send_query(address)
+
+    def publish_ha_discovery(self, address, alias, port, topic, pin_value=None):
+        """
+        Publish Home Assistant MQTT Discovery configuration for an entity
+        """
+        import json
+
+        # Skip if HA discovery is disabled
+        if not self.ha_discovery_enabled:
+            return
+
+        # Skip if already discovered
+        entity_key = (address, port)
+        if entity_key in self._discovered_entities:
+            return
+
+        # Determine component type
+        component_type = self.ha_discovery.get_component_type(port, pin_value)
+        if not component_type:
+            return
+
+        # Get or create device info
+        device_name = alias if alias else address
+        device_info = self.ha_discovery.get_device_info(address, device_name)
+
+        # Generate entity config based on component type
+        if component_type == 'sensor':
+            config = self.ha_discovery.get_sensor_config(address, port, topic, device_info)
+        elif component_type == 'binary_sensor':
+            config = self.ha_discovery.get_binary_sensor_config(address, port, topic, device_info)
+        elif component_type == 'switch':
+            config = self.ha_discovery.get_switch_config(address, port, topic, device_info)
+        else:
+            return
+
+        # Build discovery topic
+        discovery_topic = self.ha_discovery.get_discovery_topic(component_type, address, port)
+
+        # Publish discovery config with retain=True
+        self.log(logging.INFO, "Publishing HA discovery for %s %s: %s" % (address, port, discovery_topic))
+        self.mqtt.publish(discovery_topic, json.dumps(config), retain=True)
+
+        # Mark as discovered
+        self._discovered_entities[entity_key] = True
 
     def do_reload(self):
         self.log(logging.INFO, "Reloading")
@@ -303,6 +386,16 @@ if __name__ == "__main__":
     xbee2mqtt.xbee = xbee
     xbee2mqtt.processor = processor
     xbee2mqtt.config_file = config_file
+
+    # Initialize Home Assistant MQTT Discovery
+    xbee2mqtt.ha_discovery_enabled = config.get('homeassistant', 'discovery', False)
+    xbee2mqtt.ha_discovery_prefix = config.get('homeassistant', 'discovery_prefix', 'homeassistant')
+    if xbee2mqtt.ha_discovery_enabled:
+        xbee2mqtt.ha_discovery = HADiscovery(
+            discovery_prefix=xbee2mqtt.ha_discovery_prefix,
+            node_name_pattern=config.get('homeassistant', 'node_name_pattern', 'XBee {alias}')
+        )
+        logger.log(logging.INFO, "Home Assistant MQTT Discovery enabled")
 
     if len(sys.argv) == 2:
         if 'start' == sys.argv[1]:
