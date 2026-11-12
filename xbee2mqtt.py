@@ -342,6 +342,7 @@ if __name__ == "__main__":
     mqtt.clean_session = config.get('mqtt', 'clean_session', False)
     mqtt.qos = config.get('mqtt', 'qos', 0)
     mqtt.retain = config.get('mqtt', 'retain', True)
+    mqtt.status_topic = config.get('mqtt', 'status_topic', '/service/%s/status')
     mqtt.set_will = config.get('mqtt', 'set_will', True)
 
     try:
