@@ -38,8 +38,12 @@ class TestXBee(unittest.TestCase):
             'value': value
         }]
 
-    def wait(self):
-        while len(self.messages) == 0:
+    def wait(self, condition=None, timeout=5):
+        condition = condition or (lambda: len(self.messages) > 0)
+        deadline = time.time() + timeout
+        while not condition():
+            if time.time() > deadline:
+                self.fail("Timed out waiting for XBee frame to be processed")
             time.sleep(.1)
         time.sleep(.1)
     def test_x90_malformed(self):
@@ -68,6 +72,28 @@ class TestXBee(unittest.TestCase):
         self.assertEqual('0013a200406bfd09', self.messages[1]['address'])
         self.assertEqual('dio-12', self.messages[0]['port'])
         self.assertEqual(1, self.messages[0]['value'])
+
+    def test_x88_node_discovery(self):
+        # ND reply from DigiMesh node XBEE_A, captured from real hardware
+        discovered = []
+        self.xbee.on_node_discovery = lambda address, alias: discovered.append((address, alias))
+        self.serial.feed('8801' + binascii.hexlify(b'ND').decode() + '00' +
+                         'fffe' + '0013a2004097668a' + binascii.hexlify(b'XBEE_A').decode() + '00' +
+                         'fffe' + '01' + '00' + 'c105' + '101e')
+        self.wait(lambda: discovered)
+        self.assertEqual([('0013a2004097668a', 'XBEE_A')], discovered)
+        # Daemon must answer by setting the IO sample rate (IR) on the node
+        self.assertIn(b'IR', self.serial.data)
+
+    def test_x97_pin_config(self):
+        # Remote AT response: D3 configured as digital input (3)
+        self.serial.feed('9741' + '0013a2004097668a' + 'fffe' +
+                         binascii.hexlify(b'D3').decode() + '00' + '03')
+        self.wait()
+        self.assertEqual(1, len(self.messages))
+        self.assertEqual('0013a2004097668a', self.messages[0]['address'])
+        self.assertEqual('pin-3', self.messages[0]['port'])
+        self.assertEqual(3, self.messages[0]['value'])
 
 if __name__ == '__main__':
     unittest.main()

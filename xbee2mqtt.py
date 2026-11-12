@@ -74,6 +74,8 @@ class Xbee2MQTT(Daemon):
         self._routes = {}
         self._actions = {}
         for address, ports in routes.items():
+            # Radio addresses arrive as lowercase hex, so match config keys case-insensitively
+            address = str(address).lower()
             for port, topic in ports.items():
                 self._routes[(address, port)] = topic
                 self._actions['%s/set' % topic] = (address, port)
@@ -218,7 +220,7 @@ class Xbee2MQTT(Daemon):
         """
         Identification message from remote node
         """
-        now = time.strftime("%s")
+        now = str(int(time.time()))
         self.log(logging.INFO, "Identification received from radio: %s (%s) %s" % (address, alias, now))
 
         # Store alias for future reference
@@ -248,8 +250,8 @@ class Xbee2MQTT(Daemon):
         """
         import json
 
-        # Skip if HA discovery is disabled
-        if not self.ha_discovery_enabled:
+        # Skip if HA discovery is disabled, or the port has no state topic to point at
+        if not self.ha_discovery_enabled or not topic:
             return
 
         # Skip if already discovered
@@ -262,17 +264,13 @@ class Xbee2MQTT(Daemon):
         if not component_type:
             return
 
-        # Get or create device info
-        device_name = alias if alias else address
-        device_info = self.ha_discovery.get_device_info(address, device_name)
-
         # Generate entity config based on component type
         if component_type == 'sensor':
-            config = self.ha_discovery.get_sensor_config(address, port, topic, device_info)
+            config = self.ha_discovery.generate_sensor_config(address, alias, port, topic)
         elif component_type == 'binary_sensor':
-            config = self.ha_discovery.get_binary_sensor_config(address, port, topic, device_info)
+            config = self.ha_discovery.generate_binary_sensor_config(address, alias, port, topic)
         elif component_type == 'switch':
-            config = self.ha_discovery.get_switch_config(address, port, topic, device_info)
+            config = self.ha_discovery.generate_switch_config(address, alias, port, topic, '%s/set' % topic)
         else:
             return
 

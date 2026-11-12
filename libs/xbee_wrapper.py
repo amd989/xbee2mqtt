@@ -166,24 +166,25 @@ class XBeeWrapper(object):
         """
         Hook for command responses.
         """
-        if (status == '\x00'):
-            status_msg = "OK"
-        elif (status == '\x01'):
-            status_msg = "ERROR"
-        elif (status == '\x02'):
-            status_msg = "Invalid Command"
-        elif (status == '\x03'):
-            status_msg = "Invalid Parameter"
-        elif (status == '\x04'):
-            status_msg = "Tx Failure"
-        else:
-            status_msg = "Unknown"
+        # python-xbee returns status and command as bytes under Python 3
+        if isinstance(status, (bytes, bytearray)):
+            status = status[0] if status else None
+        if isinstance(command, (bytes, bytearray)):
+            command = command.decode('ascii', errors='ignore')
+
+        status_msg = {
+            0: "OK",
+            1: "ERROR",
+            2: "Invalid Command",
+            3: "Invalid Parameter",
+            4: "Tx Failure",
+        }.get(status, "Unknown")
 
         self.log(logging.INFO,
             "AT response for command: %s, status: %s" % (command, status_msg)
         )
 
-        if (status != '\x00'):
+        if (status != 0):
             return
 
         # Process Node Discovery Command
@@ -226,6 +227,11 @@ class XBeeWrapper(object):
             port = 'pin-1%s' % number if (prefix == 'P') else 'pin-%s' % number
             value = int(binascii.hexlify(response), 16)
             self.on_message(address, port, value)
+
+        # Acknowledgements for commands the daemon itself sends
+        elif (command in ('IR', 'WR')):
+            pass
+
         else:
             self.log(logging.WARNING, "Command response (%s) not implemented." % command)
 

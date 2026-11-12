@@ -69,9 +69,10 @@ class Serial(object):
         """
         Feeds incoming bytes to the consumer
         """
-        response = None
+        # Return a 1-byte bytes object like pyserial; indexing bytes gives an int in Python 3
+        response = b''
         if self.inWaiting() > 0:
-            response = self.stream[self.index]
+            response = self.stream[self.index:self.index + 1]
             self.index += 1
         return response
 
