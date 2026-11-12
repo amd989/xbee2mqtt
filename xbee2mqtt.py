@@ -347,8 +347,12 @@ if __name__ == "__main__":
     try:
         serial = Serial(
             config.get('radio', 'port', '/dev/ttyUSB0'),
-            config.get('radio', 'baudrate', 9600)
+            config.get('radio', 'baudrate', 9600),
+            rtscts=False  # Don't use automatic flow control
         )
+        # Manually assert RTS for XBees with CTS enabled but RTS disabled
+        serial.rts = True  # Assert RTS -> XBee CTS "clear to send"
+        serial.dtr = False
     except SerialException as e:
         sys.exit(e)
 
