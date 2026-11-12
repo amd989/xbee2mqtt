@@ -87,6 +87,38 @@ class TestGateway(unittest.TestCase):
         config = json.loads(self.gw.mqtt.published[self.topics().index(disc)][1])
         self.assertEqual('/home/node/relay/set', config['command_topic'])
 
+    def adc_discovery(self):
+        self.gw.load({'0013a2004097668a': {'adc-1': '/home/garage/temperature'}})
+        self.gw.xbee_on_message('0013a2004097668a', 'adc-1', 512)
+        disc = 'homeassistant/sensor/xbee_0013a2004097668a/adc_1/config'
+        return json.loads(self.gw.mqtt.published[self.topics().index(disc)][1])
+
+    def test_adc_defaults_to_voltage(self):
+        self.gw.ha_entities = {}
+        config = self.adc_discovery()
+        self.assertEqual('voltage', config['device_class'])
+        self.assertEqual('mV', config['unit_of_measurement'])
+
+    def test_entity_overrides_replace_defaults(self):
+        self.gw.ha_entities = {'/home/garage/temperature': {
+            'name': 'Garage Temperature',
+            'device_class': 'temperature',
+            'unit_of_measurement': '°C',
+            'state_class': 'measurement',
+        }}
+        config = self.adc_discovery()
+        self.assertEqual('Garage Temperature', config['name'])
+        self.assertEqual('temperature', config['device_class'])
+        self.assertEqual('°C', config['unit_of_measurement'])
+        self.assertEqual('measurement', config['state_class'])
+        self.assertEqual('/home/garage/temperature', config['state_topic'])
+
+    def test_device_class_override_drops_default_unit(self):
+        self.gw.ha_entities = {'/home/garage/temperature': {'device_class': 'humidity'}}
+        config = self.adc_discovery()
+        self.assertEqual('humidity', config['device_class'])
+        self.assertNotIn('unit_of_measurement', config)
+
     def test_unrouted_port_publishes_nothing(self):
         self.gw.load({})
         self.gw.xbee_on_identification('0013a2004097668a', 'XBEE_A')

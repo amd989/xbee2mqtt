@@ -63,6 +63,7 @@ class Xbee2MQTT(Daemon):
     ha_discovery = None  # HADiscovery instance
     ha_discovery_enabled = False
     ha_discovery_prefix = "homeassistant"
+    ha_entities = {}  # Per-topic discovery overrides: {topic: {key: value}}
     _discovered_entities = {}  # Track published entities: {(address, port): True}
     _device_pin_configs = {}  # Track pin configs: {(address, port): value}
     _device_aliases = {}  # Track device aliases: {address: alias}
@@ -274,6 +275,8 @@ class Xbee2MQTT(Daemon):
         else:
             return
 
+        self.apply_ha_overrides(config, topic)
+
         # Build discovery topic
         discovery_topic = self.ha_discovery.get_discovery_topic(component_type, address, port)
 
@@ -284,10 +287,26 @@ class Xbee2MQTT(Daemon):
         # Mark as discovered
         self._discovered_entities[entity_key] = True
 
+    def apply_ha_overrides(self, config, topic):
+        """
+        Merge the homeassistant.entities settings for this state topic into a
+        discovery config, e.g. to show a converted ADC reading as a temperature.
+        """
+        overrides = self.ha_entities.get(topic) or {}
+        # The default unit belongs to the default device class (mV for voltage),
+        # so a new class without its own unit must not inherit it
+        if 'device_class' in overrides and 'unit_of_measurement' not in overrides:
+            config.pop('unit_of_measurement', None)
+        config.update(overrides)
+        return config
+
     def do_reload(self):
         self.log(logging.INFO, "Reloading")
         config = Config(config_file)
         self.load(config.get('general', 'routes', {}))
+        self.ha_entities = config.get('homeassistant', 'entities', {}) or {}
+        # Republish discovery so changed entity settings reach Home Assistant
+        self._discovered_entities = {}
         self.mqtt.subscribe(list(self._actions.keys()))
 
     def run(self):
@@ -393,6 +412,7 @@ if __name__ == "__main__":
     # Initialize Home Assistant MQTT Discovery
     xbee2mqtt.ha_discovery_enabled = config.get('homeassistant', 'discovery', False)
     xbee2mqtt.ha_discovery_prefix = config.get('homeassistant', 'discovery_prefix', 'homeassistant')
+    xbee2mqtt.ha_entities = config.get('homeassistant', 'entities', {}) or {}
     if xbee2mqtt.ha_discovery_enabled:
         xbee2mqtt.ha_discovery = HADiscovery(
             discovery_prefix=xbee2mqtt.ha_discovery_prefix,

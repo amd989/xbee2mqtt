@@ -39,6 +39,18 @@ homeassistant:
     # Example: "XBee {alias}" becomes "XBee Living Room Sensor"
     node_name_pattern: "XBee {alias}"
 
+    # Per-entity settings, keyed by state topic (same keys as processor.filters)
+    # Any Home Assistant MQTT discovery field can be set here and replaces the
+    # generated value. By default adc-N entities are voltage sensors in mV, so
+    # set device_class and unit_of_measurement when a filter converts the value.
+    # Setting device_class without a unit drops the default mV unit.
+    entities:
+        /home/garage/temperature:
+            name: "Garage Temperature"
+            device_class: temperature
+            unit_of_measurement: "°C"
+            state_class: measurement
+
 radio:
     port: /dev/ttyUSB0
     baudrate: 57600
@@ -70,4 +82,15 @@ processor:
             parameters:
                 1: 'Closed'
                 0: 'Open'
+
+        # TMP36 on an ADC pin with a 3.3V reference: raw * 3300 / 1023 mV,
+        # then (mV - 500) / 10 gives degrees C
+        /home/garage/temperature:
+            - type: linear
+              parameters:
+                  slope: 0.32258
+                  offset: -50
+            - type: round
+              parameters:
+                  decimals: 1
 

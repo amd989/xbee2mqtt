@@ -35,7 +35,7 @@ class Config(object):
         """
         Constructor, parses and stores the configuration
         """
-        with open(filename, 'r') as handler:
+        with open(filename, 'r', encoding='utf-8') as handler:
             self.config = yaml.load(handler, Loader=yaml.SafeLoader)
 
     def get(self, section, key=None, default=None):

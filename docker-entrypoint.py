@@ -86,6 +86,7 @@ if __name__ == "__main__":
     # Home Assistant MQTT Discovery
     xbee2mqtt.ha_discovery_enabled = config.get('homeassistant', 'discovery', False)
     xbee2mqtt.ha_discovery_prefix = config.get('homeassistant', 'discovery_prefix', 'homeassistant')
+    xbee2mqtt.ha_entities = config.get('homeassistant', 'entities', {}) or {}
     if xbee2mqtt.ha_discovery_enabled:
         from libs.ha_discovery import HADiscovery
         xbee2mqtt.ha_discovery = HADiscovery(
