@@ -43,7 +43,7 @@ class TestGateway(unittest.TestCase):
         self.gw.mqtt = FakeMQTT()
         self.gw.xbee = FakeXBee()
         self.gw.processor = FakeProcessor()
-        self.gw.default_topic_pattern = '/raw/xbee/{address}/{port}'
+        self.gw.default_topic_pattern = 'xbee2mqtt/{address}/{port}'
         self.gw.expose_undefined_topics = False
         self.gw._topics = {}
         self.gw._discovered_entities = {}

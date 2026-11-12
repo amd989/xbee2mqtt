@@ -11,7 +11,7 @@ general:
     discovery_on_connect: True
     duplicate_check_window: 5
     expose_undefined_topics: False
-    default_topic_pattern: /raw/xbee/{address}/{port}
+    default_topic_pattern: xbee2mqtt/{address}/{port}
 
     routes:
         0013a200407b6d06:
