@@ -1,0 +1,14 @@
+#!/bin/sh
+set -e
+
+if [ "$1" = purge ]; then
+    if dpkg-statoverride --list /etc/xbee2mqtt/xbee2mqtt.yaml >/dev/null 2>&1; then
+        dpkg-statoverride --remove /etc/xbee2mqtt/xbee2mqtt.yaml
+    fi
+    # The xbee2mqtt user is left in place, as Debian does for system users:
+    # files it created could otherwise end up owned by a reused UID.
+fi
+
+#DEBHELPER#
+
+exit 0

@@ -55,6 +55,37 @@ docker-compose logs -f
 
 See [README.docker.md](docs/README.docker.md) for detailed Docker deployment instructions.
 
+## Install as a Package (Alternative to Docker)
+
+On Debian, Ubuntu or Raspberry Pi OS (Bookworm or Trixie), xbee2mqtt can run as a systemd service instead of a container:
+
+```bash
+curl -fsSL https://packages.alejandro.md/setup.sh | sudo sh
+sudo apt install xbee2mqtt
+```
+
+That adds the [packages.alejandro.md](https://packages.alejandro.md) repository and installs xbee2mqtt. One package fits every architecture (amd64, arm64, armhf, armel), so it runs on any Raspberry Pi. On Fedora, Rocky or Alma, the same `setup.sh` line works, followed by `sudo dnf install xbee2mqtt`. Updates come with the rest of the system (`sudo apt upgrade`), and the service is restarted after an update.
+
+Installing doesn't start anything. Set the serial port and your MQTT broker in the config first (see [Configuration](#configuration)):
+
+```bash
+sudo nano /etc/xbee2mqtt/xbee2mqtt.yaml
+```
+
+Then start the service and have it start on boot:
+
+```bash
+sudo systemctl enable --now xbee2mqtt
+journalctl -u xbee2mqtt -f    # logs
+```
+
+The service runs as the `xbee2mqtt` user, which is in the `dialout` group so it can open the serial port. Your edits to `/etc/xbee2mqtt/xbee2mqtt.yaml` are kept across updates. If the radio doesn't answer, stop the service and probe the port to find its baud rate and mode:
+
+```bash
+sudo systemctl stop xbee2mqtt
+sudo -u xbee2mqtt xbee2mqtt-probe /dev/ttyUSB0
+```
+
 ## Requirements
 
 **Python 3.6 or higher** is required. All dependencies will be installed automatically.
@@ -172,6 +203,14 @@ docker-compose down
 
 # Restart
 docker-compose restart
+```
+
+### As a Package
+
+```bash
+sudo systemctl enable --now xbee2mqtt   # start, and start on boot
+sudo systemctl restart xbee2mqtt        # after editing /etc/xbee2mqtt/xbee2mqtt.yaml
+journalctl -u xbee2mqtt -f              # logs
 ```
 
 ### Native Deployment

@@ -1,0 +1,10 @@
+#!/bin/sh
+set -e
+
+#DEBHELPER#
+
+# Written by postinst, so not in the package's file list
+find /usr/lib/xbee2mqtt -name __pycache__ -type d -prune \
+    -exec rm -rf {} + 2>/dev/null || true
+
+exit 0

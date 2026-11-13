@@ -1,0 +1,33 @@
+#!/usr/bin/make -f
+# The code goes into /usr/lib/xbee2mqtt and the Python packages it needs into
+# /usr/lib/xbee2mqtt/vendor as plain folders (see packaging/build-lib.sh), so
+# one Architecture: all package runs on every Debian release. Build with the
+# oldest Python to support, e.g.
+#   PYTHON=python3.9 dpkg-buildpackage -us -uc -b
+# The release workflow builds in the python:3.9 image for that reason, which
+# is also why python3 isn't in Build-Depends: it doesn't come from Debian.
+
+PKG := debian/xbee2mqtt
+
+%:
+	dh $@
+
+override_dh_auto_configure override_dh_auto_build override_dh_auto_test override_dh_auto_clean:
+
+override_dh_auto_install:
+	sh packaging/build-lib.sh $(PKG)/usr/lib/xbee2mqtt
+	install -D -m 0755 packaging/xbee2mqtt $(PKG)/usr/bin/xbee2mqtt
+	install -D -m 0755 packaging/xbee2mqtt-probe $(PKG)/usr/bin/xbee2mqtt-probe
+	install -D -m 0644 packaging/xbee2mqtt.service $(PKG)/lib/systemd/system/xbee2mqtt.service
+	# A conffile: dpkg keeps local edits on upgrade
+	install -D -m 0640 config/xbee2mqtt.yaml.sample $(PKG)/etc/xbee2mqtt/xbee2mqtt.yaml
+
+# Installed but not enabled: the default config points at /dev/ttyUSB0 and a
+# broker on localhost, which may not be right. Upgrades restart the service
+# once it has been enabled.
+override_dh_installsystemd:
+	dh_installsystemd --no-enable
+
+# The config holds the MQTT password: root:xbee2mqtt 0640, set in postinst
+override_dh_fixperms:
+	dh_fixperms -Xetc/xbee2mqtt/xbee2mqtt.yaml

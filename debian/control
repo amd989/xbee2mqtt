@@ -1,0 +1,25 @@
+Source: xbee2mqtt
+Section: net
+Priority: optional
+Maintainer: amd989 <amd989@users.noreply.github.com>
+Build-Depends: debhelper-compat (= 13)
+Standards-Version: 4.6.2
+Rules-Requires-Root: no
+Homepage: https://github.com/amd989/xbee2mqtt
+Vcs-Git: https://github.com/amd989/xbee2mqtt.git
+Vcs-Browser: https://github.com/amd989/xbee2mqtt
+
+Package: xbee2mqtt
+Architecture: all
+Depends: python3 (>= 3.9), passwd, ${misc:Depends}
+Recommends: alejandro-md-keyring
+Description: XBee ZigBee to MQTT gateway
+ Watches a coordinator XBee radio in API mode on a serial port, publishes
+ what the remote radios report to an MQTT broker, and sets their digital
+ pins from MQTT messages. Can announce the radios to Home Assistant through
+ MQTT discovery.
+ .
+ Runs as the xbee2mqtt systemd service, which is installed but not enabled.
+ Edit /etc/xbee2mqtt/xbee2mqtt.yaml, then run
+ `sudo systemctl enable --now xbee2mqtt`. xbee2mqtt-probe finds the baud
+ rate and mode a radio answers on.
