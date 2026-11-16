@@ -1,0 +1,249 @@
+name: Build & Release
+
+# Push a tag named after __version__ in xbee2mqtt.py, e.g. v0.10.20261112.
+# The Docker image keeps building from master in docker-build.yml.
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  # One Architecture: all deb for every Debian release and architecture: the
+  # code and its dependencies are pure Python, resolved with Python 3.9.
+  # See packaging/build-lib.sh.
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Check the tag against __version__
+        id: version
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          code_version=$(grep -oP '^__version__\s*=\s*"\K[^"]+' xbee2mqtt.py)
+          if [ "$version" != "$code_version" ]; then
+            echo "::error::Tag $GITHUB_REF_NAME does not match __version__ = \"$code_version\" in xbee2mqtt.py. Bump __version__, then tag v$code_version."
+            exit 1
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          # Debian and rpm sort a pre-release before its release with ~
+          echo "package_version=$(echo "$version" | tr - '~')" >> "$GITHUB_OUTPUT"
+
+      - name: Stamp version
+        env:
+          PACKAGE_VERSION: ${{ steps.version.outputs.package_version }}
+        run: sed -i "1s/([^)]*)/($PACKAGE_VERSION-1)/" debian/changelog
+
+      - name: Build .deb package
+        run: |
+          docker run --rm -v "$PWD":/build -w /build \
+            python:3.9-slim-bookworm bash -c '
+              set -e
+              export DEBIAN_FRONTEND=noninteractive
+              apt-get update
+              apt-get install -y --no-install-recommends \
+                build-essential debhelper fakeroot
+              PYTHON=/usr/local/bin/python3 dpkg-buildpackage -us -uc -b
+              mkdir -p output
+              mv ../*.deb output/
+              for f in output/*.deb; do
+                arch=$(dpkg-deb -f "$f" Architecture)
+                if [ "$arch" != all ]; then
+                  echo "ERROR: $f has Architecture=$arch, expected all"
+                  exit 1
+                fi
+              done
+            '
+
+      - name: Upload .deb artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: deb
+          path: output/*.deb
+
+  # Raspberry Pis are the main target, so the deb is tried on each
+  # architecture: installed, then started as the xbee2mqtt user against a
+  # fake serial port until it reaches the MQTT broker (there is none).
+  test-deb:
+    needs: [build]
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        release: [bookworm, trixie]
+        platform: [linux/amd64, linux/arm64, linux/arm/v7]
+
+    steps:
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Download .deb artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: deb
+          path: output
+
+      - name: Install and start
+        run: |
+          docker run --rm --platform ${{ matrix.platform }} \
+            -v "$PWD/output":/output debian:${{ matrix.release }} bash -c '
+              set -e
+              export DEBIAN_FRONTEND=noninteractive
+              apt-get update -qq
+              apt-get install -y -qq socat /output/*.deb
+              xbee2mqtt --version
+              xbee2mqtt-probe -h >/dev/null
+              id xbee2mqtt | grep -q "(dialout)"
+              socat pty,link=/dev/ttyUSB0,group=dialout,mode=660,raw,echo=0 \
+                pty,link=/tmp/radio,raw,echo=0 &
+              sleep 2
+              timeout 30 setpriv --reuid=xbee2mqtt --regid=xbee2mqtt --init-groups \
+                xbee2mqtt > run.log 2>&1 || true
+              cat run.log
+              grep -q "Connecting to MQTT broker" run.log
+              echo "OK on ${{ matrix.release }} $(dpkg --print-architecture) with $(python3 -V)"
+            '
+
+  # EL9, like every other rpm on packages.alejandro.md. Its Python 3.9 is the
+  # oldest one supported, so the bundled packages also run on newer Fedora.
+  build-rpm:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Extract version from tag
+        id: version
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          echo "package_version=$(echo "$version" | tr - '~')" >> "$GITHUB_OUTPUT"
+
+      - name: Build .rpm package
+        run: |
+          docker run --rm -v "$PWD":/build -w /build \
+            rockylinux:9 bash -c '
+              set -e
+              dnf install -y rpm-build python3 systemd-rpm-macros
+              VERSION='"${{ steps.version.outputs.package_version }}"'
+              mkdir -p /root/rpmbuild/{SOURCES,SPECS}
+              tar czf /root/rpmbuild/SOURCES/xbee2mqtt-${VERSION}.tar.gz \
+                --transform "s,^\.,xbee2mqtt-${VERSION}," \
+                --exclude=.git .
+              cp rpm/xbee2mqtt.spec /root/rpmbuild/SPECS/
+              rpmbuild -bb --define "_version ${VERSION}" /root/rpmbuild/SPECS/xbee2mqtt.spec
+              mkdir -p /build/output
+              cp /root/rpmbuild/RPMS/noarch/*.rpm /build/output/
+            '
+
+      - name: Upload .rpm artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: rpm
+          path: output/*.rpm
+
+  test-rpm:
+    needs: [build-rpm]
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        image: ['rockylinux:9', 'fedora:latest']
+        platform: [linux/amd64, linux/arm64]
+
+    steps:
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Download .rpm artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: rpm
+          path: output
+
+      - name: Install and start
+        run: |
+          docker run --rm --platform ${{ matrix.platform }} \
+            -v "$PWD/output":/output ${{ matrix.image }} bash -c '
+              set -e
+              dnf install -y /output/*.rpm socat util-linux
+              xbee2mqtt --version
+              xbee2mqtt-probe -h >/dev/null
+              id xbee2mqtt | grep -q "(dialout)"
+              socat pty,link=/dev/ttyUSB0,group=dialout,mode=660,raw,echo=0 \
+                pty,link=/tmp/radio,raw,echo=0 &
+              sleep 2
+              timeout 30 setpriv --reuid=xbee2mqtt --regid=xbee2mqtt --init-groups \
+                xbee2mqtt > run.log 2>&1 || true
+              cat run.log
+              grep -q "Connecting to MQTT broker" run.log
+              echo "OK on ${{ matrix.image }} $(uname -m) with $(python3 -V)"
+            '
+
+  release:
+    needs: [test-deb, test-rpm]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # Same notes as CHANGELOG.md, from cliff.toml
+      - name: Generate release notes
+        uses: orhun/git-cliff-action@v4
+        with:
+          config: cliff.toml
+          args: --latest --strip all
+        env:
+          OUTPUT: RELEASE_NOTES.md
+          GITHUB_REPO: ${{ github.repository }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: packages
+          merge-multiple: true
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            packages/*.deb
+            packages/*.rpm
+          body_path: RELEASE_NOTES.md
+
+  # Packages are published centrally by amd989/packages, which serves
+  # packages.alejandro.md. This repository builds, attaches the artifacts to
+  # its own GitHub Release, and asks the publisher to pick that release up.
+  # The signing key and the storage credentials live only over there.
+  publish:
+    needs: [release]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Publish to packages.alejandro.md
+        env:
+          GH_TOKEN: ${{ secrets.PACKAGES_DISPATCH_TOKEN }}
+          REPO: ${{ github.repository }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          if [ -z "$GH_TOKEN" ]; then
+            echo "::error::PACKAGES_DISPATCH_TOKEN is not set. The release exists, but packages.alejandro.md was not asked to publish it. Set the secret, then run the publish workflow in amd989/packages by hand for $REPO $TAG."
+            exit 1
+          fi
+          # -f rather than -F: -F converts values that look like numbers or
+          # booleans, and the publisher expects the tag as a string.
+          gh api repos/amd989/packages/dispatches \
+            -f event_type=publish \
+            -f "client_payload[repo]=$REPO" \
+            -f "client_payload[tag]=$TAG"
+          {
+            echo "### Asked packages.alejandro.md to publish \`$REPO\` \`$TAG\`"
+            echo
+            echo "Follow it at https://github.com/amd989/packages/actions/workflows/publish.yaml"
+          } >> "$GITHUB_STEP_SUMMARY"

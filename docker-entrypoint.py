@@ -1,7 +1,11 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 """
-Docker entrypoint that runs xbee2mqtt in foreground mode
+Runs xbee2mqtt in the foreground, for Docker and for the systemd unit of the
+deb and rpm packages.
+
+The config file is config/xbee2mqtt.yaml next to this script, unless the
+XBEE2MQTT_CONFIG environment variable names another one.
 """
 
 import os
@@ -9,8 +13,9 @@ import sys
 import logging
 from serial import Serial, SerialException
 
-# Add app directory to path
-sys.path.insert(0, '/app')
+# Add app directory to path (/app in the Docker image)
+APP_DIR = os.path.dirname(os.path.realpath(__file__))
+sys.path.insert(0, APP_DIR)
 
 from parse import parse
 from libs.daemon import Daemon
@@ -21,10 +26,10 @@ from libs.xbee_wrapper import XBeeWrapper
 from xbee2mqtt import Xbee2MQTT
 
 def resolve_path(path):
-    return path if path[0] == '/' else os.path.join(os.path.dirname(os.path.realpath(__file__)), path)
+    return path if path[0] == '/' else os.path.join(APP_DIR, path)
 
 if __name__ == "__main__":
-    config_file = resolve_path('config/xbee2mqtt.yaml')
+    config_file = resolve_path(os.environ.get('XBEE2MQTT_CONFIG') or 'config/xbee2mqtt.yaml')
     config = Config(config_file)
 
     handler = logging.StreamHandler()
@@ -103,7 +108,7 @@ if __name__ == "__main__":
     xbee2mqtt.config_file = config_file
 
     # Run in foreground - Docker handles process management
-    logger.info("Starting xbee2mqtt in foreground mode for Docker")
+    logger.info("Starting xbee2mqtt in foreground mode")
     try:
         xbee2mqtt.run()
     except KeyboardInterrupt:

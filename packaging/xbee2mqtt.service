@@ -1,0 +1,32 @@
+# Installed but not enabled. Edit /etc/xbee2mqtt/xbee2mqtt.yaml (serial port
+# and MQTT broker), then: sudo systemctl enable --now xbee2mqtt
+[Unit]
+Description=XBee to MQTT gateway
+Documentation=https://github.com/amd989/xbee2mqtt
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=xbee2mqtt
+Group=xbee2mqtt
+# Serial ports belong to the dialout group
+SupplementaryGroups=dialout
+Environment=PYTHONUNBUFFERED=1
+ExecStart=/usr/bin/xbee2mqtt --config /etc/xbee2mqtt/xbee2mqtt.yaml
+# A USB adapter that isn't plugged in yet or a broker that is down makes it
+# exit; keep trying
+Restart=on-failure
+RestartSec=10
+
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+RestrictSUIDSGID=yes
+
+[Install]
+WantedBy=multi-user.target

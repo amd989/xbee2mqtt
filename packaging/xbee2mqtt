@@ -1,0 +1,36 @@
+#!/usr/bin/python3 -s
+"""xbee2mqtt from the deb/rpm package: runs the gateway in the foreground.
+
+The code lives in /usr/lib/xbee2mqtt and the Python packages it needs in
+/usr/lib/xbee2mqtt/vendor (see packaging/build-lib.sh). The xbee2mqtt
+systemd service runs this as the xbee2mqtt user.
+"""
+import argparse
+import os
+import runpy
+import sys
+
+LIB = "/usr/lib/xbee2mqtt"
+sys.path[0:0] = [LIB, LIB + "/vendor"]
+
+parser = argparse.ArgumentParser(
+    prog="xbee2mqtt",
+    description="Bridge XBee ZigBee radios on a serial port to MQTT, in the foreground.",
+)
+parser.add_argument(
+    "-c", "--config",
+    default=os.environ.get("XBEE2MQTT_CONFIG") or "/etc/xbee2mqtt/xbee2mqtt.yaml",
+    help="config file (default: %(default)s)",
+)
+parser.add_argument("--version", action="store_true", help="print the version and exit")
+args = parser.parse_args()
+
+if args.version:
+    from xbee2mqtt import __version__
+
+    print("xbee2mqtt " + __version__)
+    sys.exit(0)
+
+os.environ["XBEE2MQTT_CONFIG"] = os.path.abspath(args.config)
+sys.argv = [LIB + "/docker-entrypoint.py"]
+runpy.run_path(LIB + "/docker-entrypoint.py", run_name="__main__")

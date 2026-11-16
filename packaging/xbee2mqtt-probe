@@ -1,0 +1,13 @@
+#!/usr/bin/python3 -s
+# tools/xbee_probe.py from the deb/rpm package: finds the baud rate and mode
+# an XBee answers on. Stop the xbee2mqtt service first, it holds the port.
+import sys
+
+LIB = "/usr/lib/xbee2mqtt"
+sys.path[0:0] = [LIB, LIB + "/vendor"]
+
+# exec rather than runpy, which would show the script's path in --help
+path = LIB + "/tools/xbee_probe.py"
+with open(path, encoding="utf-8") as f:
+    code = compile(f.read(), path, "exec")
+exec(code, {"__name__": "__main__", "__file__": path})

@@ -1,0 +1,33 @@
+#!/bin/sh
+set -e
+
+CONFIG=/etc/xbee2mqtt/xbee2mqtt.yaml
+
+if [ "$1" = configure ]; then
+    if ! getent passwd xbee2mqtt >/dev/null; then
+        useradd --system --user-group --home-dir /nonexistent --no-create-home \
+            --shell /usr/sbin/nologin --comment "XBee to MQTT gateway" xbee2mqtt
+    fi
+    # Serial ports belong to dialout
+    if ! id -nG xbee2mqtt | tr ' ' '\n' | grep -qx dialout; then
+        usermod -a -G dialout xbee2mqtt
+    fi
+
+    # The config holds the MQTT password. A statoverride survives upgrades
+    # and lets the admin pick other permissions.
+    if ! dpkg-statoverride --list "$CONFIG" >/dev/null 2>&1; then
+        dpkg-statoverride --update --add root xbee2mqtt 0640 "$CONFIG"
+    fi
+
+    # Byte-compile for whichever Python 3 this system has
+    python3 -m compileall -q /usr/lib/xbee2mqtt >/dev/null 2>&1 || true
+
+    if [ -z "$2" ]; then
+        echo "xbee2mqtt installed. Set the serial port and MQTT broker in $CONFIG,"
+        echo "then start it with: sudo systemctl enable --now xbee2mqtt"
+    fi
+fi
+
+#DEBHELPER#
+
+exit 0
